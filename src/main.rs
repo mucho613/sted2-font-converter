@@ -2,12 +2,18 @@ use std::{fs::File, io::Read};
 use image::{ImageBuffer};
 
 fn main() {
-    let mut file = File::open("./STED2.FON").expect("ファイルの読み込みに失敗しました");
+    const COUNT_X: u32 = 32;
+    const COUNT_Y: u32 = 128;
+
+    const GLYPH_SIZE_X: u32 = 16;
+    const GLYPH_SIZE_Y: u32 = 16;
+
+    let mut file: File = File::open("./STED2.FON").expect("ファイルの読み込みに失敗しました");
     let mut buffer: Vec<u8> = vec![];
     file.read_to_end(&mut buffer).expect("読み込みに失敗しました");
     let height = buffer.len() / 2;
 
-    let img = ImageBuffer::from_fn(16, u32::try_from(height).unwrap(), |x: u32, y: u32| {
+    let image = ImageBuffer::from_fn(GLYPH_SIZE_X, u32::try_from(height).unwrap(), |x, y| {
         let byte_offset: u32 = if x < 8 { 0 } else { 1 };
         let index: usize = usize::try_from(y * 2 + byte_offset).unwrap();
         let byte = buffer[index];
@@ -29,19 +35,19 @@ fn main() {
 
     });
 
-    let remapped_image = ImageBuffer::from_fn(256, 256, |x: u32, y: u32| {
-        let source_glyph = (x / 16, y / 16);
-        let source_glyph_px = (x % 16, y % 16);
+    let remapped_image = ImageBuffer::from_fn(COUNT_X * GLYPH_SIZE_X, COUNT_Y * GLYPH_SIZE_Y, |x, y| {
+        let source_glyph = (x / GLYPH_SIZE_X, y / GLYPH_SIZE_Y);
+        let source_glyph_px = (x % GLYPH_SIZE_X, y % GLYPH_SIZE_Y);
 
         let target_x = source_glyph_px.0;
-        let target_y = (source_glyph.0 * 16) + (source_glyph.1 * 16 * 16) + (source_glyph_px.1);
+        let target_y = (source_glyph.0 * GLYPH_SIZE_X) + (source_glyph.1 * COUNT_X * GLYPH_SIZE_X) + (source_glyph_px.1);
 
         if target_y >= u32::try_from(height).unwrap() {
             image::Luma([0u8])
         } else {
-            *img.get_pixel(target_x, target_y)
+            *image.get_pixel(target_x, target_y)
         }
     });
 
-    remapped_image.save("remapped.png").unwrap();
+    remapped_image.save("output.png").expect("ファイルの保存に失敗しました");
 }
